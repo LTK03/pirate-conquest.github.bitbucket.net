@@ -1,0 +1,2228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pirate Conquest - 100 Levels, Rebirth & Server Browser</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            background-color: #0c192c;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #f59e0b;
+            border-radius: 4px;
+        }
+
+        .btn-action {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+        }
+        .btn-action:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .modal-body-scroll {
+            max-height: clamp(220px, 50vh, 500px);
+        }
+
+        @keyframes pulse-gold {
+            0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(245, 158, 11, 0.9); }
+        }
+        .pulse-gold {
+            animation: pulse-gold 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen relative flex items-center justify-center overflow-hidden">
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" class="absolute inset-0 w-full h-full z-0 block bg-slate-900"></canvas>
+
+    <!-- IN-GAME HUD OVERLAYS -->
+    <div id="uiContainer" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4">
+
+        <!-- TOP BAR HUD -->
+        <div id="hudTop" class="flex justify-between items-start w-full opacity-0 transition-opacity duration-300">
+            <!-- Left Info Panel -->
+            <div class="glass-panel p-3 rounded-2xl flex flex-col gap-2 pointer-events-auto min-w-[210px]">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="font-game text-yellow-400 text-lg flex items-center gap-1">
+                        <i class="fa-solid fa-coins"></i> <span id="hudCoins">0</span>
+                    </span>
+                    <span id="hudLevelBadge" class="bg-amber-600 font-game px-3 py-0.5 rounded-full text-xs text-white uppercase tracking-wider">
+                        Level 1
+                    </span>
+                </div>
+                <!-- Health Bar -->
+                <div>
+                    <div class="flex justify-between text-xs font-bold mb-1 text-slate-300">
+                        <span>HEALTH</span>
+                        <span id="hudHpText">100 / 100</span>
+                    </div>
+                    <div class="w-full h-3 bg-slate-700/80 rounded-full overflow-hidden border border-slate-600">
+                        <div id="hudHpBar" class="h-full bg-gradient-to-r from-red-500 to-emerald-400 w-full transition-all duration-150"></div>
+                    </div>
+                </div>
+                <!-- Server/Mode Info -->
+                <div class="text-[10px] text-slate-400 font-bold flex justify-between">
+                    <span>MODE: <span id="hudServerModeText" class="text-amber-400">SINGLEPLAYER</span></span>
+                    <span id="hudServerNameText" class="text-blue-400">SERVER #1</span>
+                </div>
+            </div>
+
+            <!-- Middle Storm / Alive Tracker -->
+            <div class="glass-panel px-6 py-2 rounded-2xl flex items-center gap-6 pointer-events-auto">
+                <div class="text-center">
+                    <div class="text-xs font-bold text-slate-400 uppercase">Pirates Alive</div>
+                    <div id="hudAliveText" class="font-game text-2xl text-red-400">10</div>
+                </div>
+                <div class="h-8 w-[2px] bg-slate-700"></div>
+                <div class="text-center">
+                    <div class="text-xs font-bold text-slate-400 uppercase">Storm Status</div>
+                    <div id="hudStormText" class="font-game text-sm text-amber-400">CLOSING</div>
+                </div>
+            </div>
+
+            <!-- Right Controls / Pause & Chat -->
+            <div class="glass-panel p-2 rounded-2xl flex items-center gap-2 pointer-events-auto">
+                <button id="btnToggleChat" onclick="toggleChat()" class="btn-action bg-cyan-700 hover:bg-cyan-600 text-white p-3 rounded-xl font-game">
+                    <i class="fa-solid fa-comments text-xl"></i>
+                </button>
+                <button id="btnPause" onclick="openMenu()" class="btn-action bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-xl font-game">
+                    <i class="fa-solid fa-pause text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- IN-GAME CHAT BOX -->
+        <div id="hudChatBox" class="opacity-0 pointer-events-auto absolute bottom-24 left-4 w-72 sm:w-80 glass-panel p-3 rounded-2xl flex flex-col gap-2 transition-opacity duration-200">
+            <div class="text-[11px] font-bold text-cyan-400 uppercase border-b border-slate-700 pb-1 flex justify-between">
+                <span>PIRATE CHAT</span>
+                <span class="text-[9px] text-slate-400">Press / to focus</span>
+            </div>
+            <div id="chatMessages" class="h-28 overflow-y-auto custom-scroll flex flex-col gap-1 text-xs"></div>
+            <div class="flex gap-1.5">
+                <input id="inputChatMessage" type="text" placeholder="Type message..." class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-xs text-white w-full focus:outline-none focus:border-cyan-400">
+                <button onclick="sendChatMessage()" class="btn-action bg-cyan-600 hover:bg-cyan-500 text-white font-game px-3 rounded-xl text-xs">
+                    Send
+                </button>
+            </div>
+        </div>
+
+        <!-- MID-GAME ONE-TIME SHOP POPUP -->
+        <div id="hudInGameShop" class="opacity-0 transition-opacity duration-300 self-center pointer-events-auto flex flex-wrap justify-center gap-2 mb-2 bg-slate-900/90 p-2 rounded-2xl border border-amber-500/30 backdrop-blur">
+            <button onclick="buyOneTimeUpgrade('speed')" class="btn-action bg-slate-800 hover:bg-slate-700 border border-slate-600 p-2 rounded-xl text-left flex items-center gap-2 min-w-[120px]">
+                <div class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-lg"><i class="fa-solid fa-bolt"></i></div>
+                <div>
+                    <div class="text-xs font-bold">Speed Boost</div>
+                    <div class="text-[10px] text-yellow-400 font-game"><i class="fa-solid fa-coins"></i> 30 Gold</div>
+                </div>
+            </button>
+            <button onclick="buyOneTimeUpgrade('shield')" class="btn-action bg-slate-800 hover:bg-slate-700 border border-slate-600 p-2 rounded-xl text-left flex items-center gap-2 min-w-[120px]">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg"><i class="fa-solid fa-shield-halved"></i></div>
+                <div>
+                    <div class="text-xs font-bold">Shield (+50)</div>
+                    <div class="text-[10px] text-yellow-400 font-game"><i class="fa-solid fa-coins"></i> 50 Gold</div>
+                </div>
+            </button>
+            <button onclick="buyOneTimeUpgrade('giant')" class="btn-action bg-slate-800 hover:bg-slate-700 border border-slate-600 p-2 rounded-xl text-left flex items-center gap-2 min-w-[120px]">
+                <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-lg"><i class="fa-solid fa-expand"></i></div>
+                <div>
+                    <div class="text-xs font-bold">Giant Slash</div>
+                    <div class="text-[10px] text-yellow-400 font-game"><i class="fa-solid fa-coins"></i> 60 Gold</div>
+                </div>
+            </button>
+            <button onclick="buyOneTimeUpgrade('magnet')" class="btn-action bg-slate-800 hover:bg-slate-700 border border-slate-600 p-2 rounded-xl text-left flex items-center gap-2 min-w-[120px]">
+                <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-lg"><i class="fa-solid fa-magnet"></i></div>
+                <div>
+                    <div class="text-xs font-bold">Coin Magnet</div>
+                    <div class="text-[10px] text-yellow-400 font-game"><i class="fa-solid fa-coins"></i> 40 Gold</div>
+                </div>
+            </button>
+        </div>
+
+        <!-- CHARGE DASH HUD INDICATOR -->
+        <div id="hudDashBarContainer" class="pointer-events-none absolute bottom-24 left-1/2 -translate-x-1/2 w-48 bg-slate-900/90 border border-amber-500/50 p-1.5 rounded-full flex flex-col items-center gap-1 opacity-0 transition-opacity">
+            <div class="text-[9px] font-game text-amber-400 uppercase tracking-widest flex items-center gap-1">
+                <i class="fa-solid fa-gauge-high"></i> HOLD ATTACK / SPACE TO CHARGE DASH
+            </div>
+            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                <div id="hudDashBar" class="h-full bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 w-0 transition-all duration-75"></div>
+            </div>
+        </div>
+
+        <!-- TOUCH CONTROLS (MOBILE) -->
+        <div id="touchControls" class="flex justify-between items-end w-full pointer-events-auto md:hidden pb-2 px-2">
+            <div id="joystickZone" class="w-32 h-32 rounded-full bg-slate-800/40 border-2 border-slate-500/40 relative flex items-center justify-center">
+                <div id="joystickKnob" class="w-12 h-12 rounded-full bg-amber-500/80 absolute transition-transform duration-75"></div>
+            </div>
+            <button id="btnTouchAttack" class="w-20 h-20 rounded-full bg-red-600 border-4 border-amber-400 text-white font-game text-xs flex flex-col items-center justify-center active:scale-95 shadow-lg">
+                <span>SWING</span>
+                <span class="text-[8px] text-amber-200">(HOLD DASH)</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN MENU & MODALS CONTAINER -->
+    <div id="modalOverlay" class="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4">
+
+        <!-- MAIN MENU PANEL -->
+        <div id="menuMain" class="glass-panel w-full max-w-xl rounded-3xl p-4 sm:p-6 flex flex-col items-center gap-4 sm:gap-5 text-center border-amber-500/30 pulse-gold max-h-[95vh] overflow-y-auto custom-scroll">
+            <div>
+                <h1 class="font-game text-3xl sm:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 drop-shadow-md">
+                    PIRATE CONQUEST
+                </h1>
+                <p class="text-[10px] sm:text-xs text-slate-400 mt-1 font-bold tracking-wider">PIRATE ARENA • REBIRTH SHRINE • MULTIPLAYER SERVERS</p>
+            </div>
+
+            <!-- Pirate Custom Name Bar -->
+            <div class="w-full bg-slate-900/90 border border-slate-700 p-2 sm:p-3 rounded-2xl flex items-center gap-2">
+                <i class="fa-solid fa-id-card text-amber-400 text-lg ml-2"></i>
+                <input id="inputPirateName" type="text" maxlength="15" placeholder="Enter Pirate Name..." value="Cap'n Pirate" onchange="savePirateName(this.value)" class="bg-slate-800 border border-slate-600 rounded-xl px-3 py-1.5 text-sm font-game text-amber-300 w-full focus:outline-none focus:border-amber-400">
+            </div>
+
+            <!-- Stats Header -->
+            <div class="grid grid-cols-3 gap-2 w-full bg-slate-900/80 p-2 sm:p-3 rounded-2xl border border-slate-700/50 text-xs sm:text-base">
+                <div class="flex flex-col items-center">
+                    <span class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold">Total Gold</span>
+                    <span id="menuGoldText" class="font-game text-yellow-400 text-sm sm:text-lg flex items-center gap-1">
+                        <i class="fa-solid fa-coins"></i> 0
+                    </span>
+                </div>
+                <div class="flex flex-col items-center border-x border-slate-700">
+                    <span class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold">Max Level</span>
+                    <span id="menuLevelText" class="font-game text-emerald-400 text-sm sm:text-lg">1 / 100</span>
+                </div>
+                <div class="flex flex-col items-center">
+                    <span class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold">Rebirth Bonus</span>
+                    <span id="menuRebirthBonusText" class="font-game text-purple-400 text-sm sm:text-lg">+0 All</span>
+                </div>
+            </div>
+
+            <!-- Device Account Profile Tag -->
+            <div class="w-full bg-slate-900/90 border border-slate-700 p-2 rounded-2xl flex items-center justify-between gap-2 text-xs">
+                <div class="flex items-center gap-2 overflow-hidden">
+                    <i class="fa-solid fa-mobile-screen-button text-amber-400 text-base ml-1"></i>
+                    <div class="text-left truncate">
+                        <div class="text-[9px] text-slate-400 font-bold uppercase">Device User ID</div>
+                        <div id="accountUserId" class="font-mono text-slate-300 text-[10px] truncate max-w-[140px] sm:max-w-[200px]">Generating...</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="copyPirateCode()" class="btn-action bg-amber-600 hover:bg-amber-500 text-slate-950 font-game px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1 whitespace-nowrap">
+                        <i class="fa-solid fa-copy"></i> <span id="copyBtnText">Copy Code</span>
+                    </button>
+                    <button onclick="openModal('modalFriends')" class="btn-action bg-slate-800 hover:bg-slate-700 border border-slate-600 px-3 py-1.5 rounded-xl font-game text-xs text-cyan-400 flex items-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-solid fa-user-group"></i> Friends
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Menu Buttons -->
+            <div class="grid grid-cols-2 gap-2 sm:gap-3 w-full">
+                <button id="btnResumeGame" onclick="resumeGame()" class="hidden col-span-2 btn-action bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-game text-lg sm:text-2xl py-3 rounded-2xl flex items-center justify-center gap-3 animate-pulse">
+                    <i class="fa-solid fa-play"></i> RESUME GAME
+                </button>
+
+                <button onclick="startGameCurrentLevel()" class="col-span-2 btn-action bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-game text-lg sm:text-2xl py-3 rounded-2xl flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-rotate-right"></i> START BATTLE (LEVEL <span id="btnCurrentLevelNum">1</span>)
+                </button>
+
+                <button onclick="openModal('modalServers')" class="col-span-2 btn-action bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-game py-2.5 text-xs sm:text-base rounded-2xl flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-server"></i> Server Browser (10 Servers)
+                </button>
+
+                <button onclick="openModal('modalLevels')" class="btn-action bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-game py-2.5 text-xs sm:text-base rounded-2xl flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-map text-amber-400"></i> Level Select
+                </button>
+                <button onclick="openModal('modalSkins')" class="btn-action bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-game py-2.5 text-xs sm:text-base rounded-2xl flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-user-ninja text-blue-400"></i> Skins (75)
+                </button>
+                <button onclick="openModal('modalWeapons')" class="btn-action bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-game py-2.5 text-xs sm:text-base rounded-2xl flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-red-400"></i> Weapons (75)
+                </button>
+                <button onclick="openModal('modalUpgrades')" class="btn-action bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-game py-2.5 text-xs sm:text-base rounded-2xl flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-angles-up text-emerald-400"></i> Upgrades
+                </button>
+                <button onclick="openModal('modalRebirth')" class="col-span-2 btn-action bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-game py-2.5 text-xs sm:text-base rounded-2xl flex items-center justify-center gap-2 border border-purple-400/30">
+                    <i class="fa-solid fa-rotate text-purple-300"></i> Rebirth Shrine
+                </button>
+                
+                <!-- Wipe Progress Button -->
+                <button onclick="confirmWipeData()" class="col-span-2 btn-action bg-rose-950 hover:bg-rose-900 border border-rose-600/50 text-rose-300 font-game py-2 text-xs rounded-xl flex items-center justify-center gap-2 mt-1">
+                    <i class="fa-solid fa-trash-can"></i> Wipe All Progress
+                </button>
+            </div>
+        </div>
+
+        <!-- SERVER BROWSER MODAL (10 SERVERS) -->
+        <div id="modalServers" class="hidden glass-panel w-full max-w-xl rounded-3xl p-4 sm:p-6 flex flex-col gap-3 max-h-[90vh]">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h2 class="font-game text-xl sm:text-2xl text-cyan-400 flex items-center gap-2">
+                    <i class="fa-solid fa-server"></i> ONLINE PIRATE SERVERS (10)
+                </h2>
+                <button onclick="closeModal('modalServers')" class="text-slate-400 hover:text-white font-bold text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="text-[11px] text-slate-400">All player stats, positions, and server counts are synchronized live on cloud servers! Choose a server: <b>Solo</b>, <b>10-Player PVP</b>, or <b>Co-Op</b>.</div>
+            <div id="serversList" class="flex flex-col gap-2 overflow-y-auto modal-body-scroll custom-scroll pr-1"></div>
+        </div>
+
+        <!-- LEVEL SELECT MODAL (1-100 GRID) WITH DETAILED BOT SCALING LEGEND -->
+        <div id="modalLevels" class="hidden glass-panel w-full max-w-2xl rounded-3xl p-4 sm:p-6 flex flex-col gap-3 max-h-[90vh]">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h2 class="font-game text-xl sm:text-2xl text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-map"></i> SELECT LEVEL (1-100)
+                </h2>
+                <button onclick="closeModal('modalLevels')" class="text-slate-400 hover:text-white font-bold text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <!-- Bot Scaling Legend Breakdown -->
+            <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 space-y-1">
+                <div class="font-bold text-amber-400 text-sm mb-1">Bot Difficulty Scaling Breakdown:</div>
+                <div class="flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 font-semibold border border-emerald-800/50">Lvl 1–50</span>
+                    <span>Standard Compounding (+1% HP & DMG per level)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 rounded bg-blue-950 text-blue-400 font-semibold border border-blue-800/50">Lvl 51–75</span>
+                    <span>Accelerated Compounding (+2.5% HP & DMG per level)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 rounded bg-purple-950 text-purple-400 font-semibold border border-purple-800/50">Lvl 76–90</span>
+                    <span>Flat Stat Scaling (+5 HP & +5 DMG per level above 75)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 rounded bg-red-950 text-red-400 font-semibold border border-red-800/50">Lvl 91–100</span>
+                    <span>Extreme Bot Boost (+10 HP & +10 DMG per level above 90; Lvl 98–100 Extreme Boss Tier)</span>
+                </div>
+            </div>
+
+            <div id="levelGrid" class="grid grid-cols-5 sm:grid-cols-10 gap-1.5 sm:gap-2 overflow-y-auto modal-body-scroll custom-scroll p-2 bg-slate-900/60 rounded-2xl border border-slate-800"></div>
+        </div>
+
+        <!-- SKINS SHOP MODAL -->
+        <div id="modalSkins" class="hidden glass-panel w-full max-w-2xl rounded-3xl p-4 sm:p-6 flex flex-col gap-3 max-h-[90vh]">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h2 class="font-game text-xl sm:text-2xl text-blue-400 flex items-center gap-2">
+                    <i class="fa-solid fa-user-ninja"></i> PIRATE SKINS
+                </h2>
+                <button onclick="closeModal('modalSkins')" class="text-slate-400 hover:text-white font-bold text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="skinsList" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 overflow-y-auto modal-body-scroll custom-scroll pr-1"></div>
+        </div>
+
+        <!-- WEAPONS SHOP MODAL -->
+        <div id="modalWeapons" class="hidden glass-panel w-full max-w-2xl rounded-3xl p-4 sm:p-6 flex flex-col gap-3 max-h-[90vh]">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h2 class="font-game text-xl sm:text-2xl text-red-400 flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> WEAPON ARSENAL
+                </h2>
+                <button onclick="closeModal('modalWeapons')" class="text-slate-400 hover:text-white font-bold text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="weaponsList" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 overflow-y-auto modal-body-scroll custom-scroll pr-1"></div>
+        </div>
+
+        <!-- PERMANENT UPGRADES MODAL -->
+        <div id="modalUpgrades" class="hidden glass-panel w-full max-w-2xl rounded-3xl p-4 sm:p-6 flex flex-col gap-3 max-h-[90vh]">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h2 class="font-game text-xl sm:text-2xl text-emerald-400 flex items-center gap-2">
+                    <i class="fa-solid fa-angles-up"></i> PERMANENT UPGRADES
+                </h2>
+                <button onclick="closeModal('modalUpgrades')" class="text-slate-400 hover:text-white font-bold text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="upgradesList" class="flex flex-col gap-2.5 overflow-y-auto modal-body-scroll custom-scroll pr-1"></div>
+        </div>
+
+        <!-- REBIRTH SHRINE MODAL -->
+        <div id="modalRebirth" class="hidden glass-panel w-full max-w-xl rounded-3xl p-6 flex flex-col gap-4 text-center">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h2 class="font-game text-2xl text-purple-400 flex items-center gap-2">
+                    <i class="fa-solid fa-rotate"></i> REBIRTH SHRINE
+                </h2>
+                <button onclick="closeModal('modalRebirth')" class="text-slate-400 hover:text-white font-bold text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-300">
+                <span class="text-red-400 font-bold uppercase">Warning:</span> Rebirthing completely wipes your <span class="text-yellow-400">Coins</span>, <span class="text-blue-400">Skins</span>, <span class="text-red-400">Weapons</span>, and <span class="text-emerald-400">Upgrades</span>, resetting level progress to Level 1! In exchange, you get permanent +2 base stats per 10 levels completed!
+            </p>
+            
+            <div class="bg-purple-950/50 border border-purple-500/30 p-4 rounded-2xl flex flex-col gap-2">
+                <div class="text-xs font-bold text-purple-300 uppercase">Current Rebirth Bonus</div>
+                <div id="rebirthCurrentBonusText" class="font-game text-2xl text-purple-200">+0 Stats</div>
+                <div id="rebirthEligibleText" class="text-xs text-amber-400 font-bold mt-1">
+                    Requires Level 10+ to Rebirth. (Level 10 = +2 Stats, Level 20 = +4 Stats, etc.)
+                </div>
+            </div>
+
+            <button id="btnPerformRebirth" onclick="performRebirth()" class="btn-action bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-game text-xl py-3.5 rounded-2xl w-full">
+                REBIRTH NOW
+            </button>
+        </div>
+
+        <!-- FRIENDS MODAL -->
+        <div id="modalFriends" class="hidden glass-panel w-full max-w-md rounded-3xl p-4 sm:p-6 flex flex-col gap-3 max-h-[90vh]">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h2 class="font-game text-xl sm:text-2xl text-cyan-400 flex items-center gap-2">
+                    <i class="fa-solid fa-user-group"></i> PIRATE FRIENDS
+                </h2>
+                <button onclick="closeModal('modalFriends')" class="text-slate-400 hover:text-white font-bold text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex gap-2">
+                <input id="inputFriendId" type="text" placeholder="Enter Exact Pirate ID..." class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono w-full focus:outline-none focus:border-cyan-400">
+                <button onclick="addFriend()" class="btn-action bg-cyan-600 hover:bg-cyan-500 text-white font-game px-4 rounded-xl text-xs whitespace-nowrap">
+                    Add ID
+                </button>
+            </div>
+            <div id="friendsList" class="flex flex-col gap-2 overflow-y-auto modal-body-scroll custom-scroll pr-1"></div>
+        </div>
+
+        <!-- GAME OVER / VICTORY MODAL -->
+        <div id="modalGameOver" class="hidden glass-panel w-full max-w-md rounded-3xl p-6 flex flex-col items-center gap-4 text-center">
+            <h2 id="endGameTitle" class="font-game text-4xl text-yellow-400">VICTORY!</h2>
+            <p id="endGameDesc" class="text-sm text-slate-300">You eliminated all enemy pirates!</p>
+            
+            <div class="bg-slate-900/80 w-full p-4 rounded-2xl flex justify-around border border-slate-700">
+                <div>
+                    <div class="text-xs text-slate-400 font-bold">GOLD EARNED</div>
+                    <div id="endGameCoins" class="font-game text-2xl text-yellow-400"><i class="fa-solid fa-coins"></i> +50</div>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-400 font-bold">PIRATES KILLED</div>
+                    <div id="endGameKills" class="font-game text-2xl text-red-400">9</div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 w-full">
+                <button onclick="closeModal('modalGameOver'); openMenu();" class="flex-1 btn-action bg-slate-700 hover:bg-slate-600 text-white font-game py-3 rounded-2xl">
+                    MENU
+                </button>
+                <button id="btnEndNextRetry" onclick="restartOrNextLevel()" class="flex-1 btn-action bg-emerald-600 hover:bg-emerald-500 text-white font-game py-3 rounded-2xl">
+                    NEXT LEVEL
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- FIREBASE MULTIPLAYER & LOCAL STORAGE ENGINE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'yohoho-conquest-game';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyDemoKeyForPirateConquestWeb",
+            authDomain: "yohoho-conquest.firebaseapp.com",
+            projectId: "yohoho-conquest",
+            storageBucket: "yohoho-conquest.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        window.remotePlayers = {};
+
+        if (!window.serverPlayerCounts) {
+            window.serverPlayerCounts = new Array(10).fill(0);
+        }
+
+        window.initCloudServices = async function() {
+            let deviceUid = localStorage.getItem('yohoho_device_uid');
+            if (!deviceUid) {
+                deviceUid = 'PIRATE_' + Math.floor(1000 + Math.random() * 9000);
+                localStorage.setItem('yohoho_device_uid', deviceUid);
+            }
+            const uidEl = document.getElementById('accountUserId');
+            if (uidEl) uidEl.innerText = deviceUid;
+            window.deviceUserId = deviceUid;
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUser = user;
+                        window.currentUser = user;
+                        if (uidEl) uidEl.innerText = user.uid;
+                        window.deviceUserId = user.uid;
+                        await loadCloudSave();
+                        subscribeServerUpdates();
+                        subscribeServerPlayers();
+                        subscribeGlobalChat();
+                    }
+                });
+            } catch(e) {
+                console.error("Cloud Services Init:", e);
+            }
+        };
+
+        // Load profile state strictly from Cloud Firestore
+        async function loadCloudSave() {
+            if (!db || !currentUser) return;
+            try {
+                const ref = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'savedata', 'profile');
+                const snap = await getDoc(ref);
+                if (snap.exists()) {
+                    Object.assign(window.state, snap.data());
+                    window.saveStateLocalOnly();
+                    window.updateUI();
+                } else {
+                    await window.saveCloudData(window.state);
+                }
+            } catch(e) {}
+        }
+
+        // Save progress to cloud database
+        window.saveCloudData = async function(data) {
+            if (!db || !currentUser) return;
+            try {
+                const ref = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'savedata', 'profile');
+                await setDoc(ref, {
+                    ...data,
+                    lastOnline: Date.now()
+                }, { merge: true });
+            } catch(e) {}
+        };
+
+        // Heartbeat to maintain online status
+        setInterval(() => {
+            if (currentUser) {
+                window.saveCloudData({});
+            }
+        }, 12000);
+
+        window.getFriendOnlineStatus = async function(friendId) {
+            if (!db) return false;
+            try {
+                const ref = doc(db, 'artifacts', appId, 'users', friendId, 'savedata', 'profile');
+                const snap = await getDoc(ref);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (data && data.lastOnline) {
+                        return (Date.now() - data.lastOnline) < 30000;
+                    }
+                }
+            } catch(e) {}
+            return false;
+        };
+
+        // Realtime online player counts per server room
+        function subscribeServerUpdates() {
+            if (!db) return;
+            try {
+                for (let i = 0; i < 10; i++) {
+                    const serverId = `server_${i}`;
+                    const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'servers', serverId, 'players');
+                    onSnapshot(colRef, (snapshot) => {
+                        const now = Date.now();
+                        let activeCount = 0;
+                        snapshot.forEach(docSnap => {
+                            const data = docSnap.data();
+                            if (data && (now - data.lastSeen < 12000)) {
+                                activeCount++;
+                            }
+                        });
+                        if (window.serverPlayerCounts) {
+                            window.serverPlayerCounts[i] = activeCount;
+                        }
+                        if (typeof window.renderServers === 'function') window.renderServers();
+                    }, (err) => {});
+                }
+            } catch(e) {}
+        }
+
+        let unsubPlayers = null;
+        window.subscribeServerPlayers = function() {
+            if (!db) return;
+            if (unsubPlayers) unsubPlayers();
+            try {
+                const serverId = `server_${window.currentSelectedServer || 0}`;
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'servers', serverId, 'players');
+                unsubPlayers = onSnapshot(colRef, (snapshot) => {
+                    const now = Date.now();
+                    const activeRemotes = {};
+                    snapshot.forEach(docSnap => {
+                        const pid = docSnap.id;
+                        if (pid !== window.deviceUserId) {
+                            const data = docSnap.data();
+                            if (data && (now - data.lastSeen < 12000) && data.alive) {
+                                activeRemotes[pid] = data;
+                            }
+                        }
+                    });
+                    window.remotePlayers = activeRemotes;
+                }, (err) => {});
+            } catch(e) {}
+        };
+
+        let unsubChat = null;
+        window.subscribeGlobalChat = function() {
+            if (!db) return;
+            if (unsubChat) unsubChat();
+            try {
+                const serverId = `server_${window.currentSelectedServer || 0}`;
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'servers', serverId, 'chat');
+                unsubChat = onSnapshot(colRef, (snapshot) => {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === "added") {
+                            const data = change.doc.data();
+                            if (data && data.sender && data.text) {
+                                window.addChatMessage(data.sender, data.text);
+                            }
+                        }
+                    });
+                }, (err) => {});
+            } catch(e) {}
+        };
+
+        window.broadcastChatMessage = async function(text) {
+            if (!db) return;
+            try {
+                const serverId = `server_${window.currentSelectedServer || 0}`;
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'servers', serverId, 'chat', `msg_${Date.now()}_${Math.random()}`);
+                await setDoc(ref, {
+                    sender: window.state.pirateName,
+                    text: text,
+                    timestamp: Date.now()
+                });
+            } catch(e) {}
+        };
+
+        window.syncServerMultiplayerPos = async function(serverIndex, playerData) {
+            if (!db) return;
+            try {
+                const serverId = `server_${serverIndex}`;
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'servers', serverId, 'players', window.deviceUserId);
+                await setDoc(ref, {
+                    name: window.state.pirateName,
+                    x: playerData.x,
+                    y: playerData.y,
+                    angle: playerData.angle,
+                    hp: playerData.hp,
+                    maxHp: playerData.maxHp,
+                    alive: playerData.alive,
+                    skinId: window.state.selectedSkin,
+                    weaponId: window.state.selectedWeapon,
+                    lastSeen: Date.now()
+                }, { merge: true });
+            } catch(e) {}
+        };
+
+        window.leaveServerRoom = async function() {
+            if (!db) return;
+            try {
+                const serverId = `server_${window.currentSelectedServer || 0}`;
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'servers', serverId, 'players', window.deviceUserId);
+                await deleteDoc(ref);
+            } catch(e) {}
+        };
+
+        window.initCloudServices();
+    </script>
+
+    <script>
+        /* --- GAME ENGINE & STATE STORAGE --- */
+        let canvas = null;
+        let ctx = null;
+        let isRunning = false;
+        let lastTime = 0;
+        let mouseX = 0, mouseY = 0;
+        let isMouseDown = false;
+        const keys = {};
+        const camera = { x: 0, y: 0 };
+        let arenaRadius = 1200;
+        let stormRadius = 1200;
+        let inGameGoldEarned = 0;
+        let totalKills = 0;
+        let currentWave = 1;
+        let activeOneTime = { speed: false, shield: false, giant: false, magnet: false };
+
+        let player = null;
+        let bots = [];
+        let coins = [];
+
+        let currentSelectedServer = 0;
+        let gameMode = 'SOLO';
+        let isMultiplayer = false;
+        
+        if (!window.serverPlayerCounts) {
+            window.serverPlayerCounts = new Array(10).fill(0);
+        }
+
+        let state = {
+            pirateName: "Cap'n Pirate",
+            selectedLevel: 1,
+            maxLevelUnlocked: 1,
+            gold: 0,
+            selectedSkin: 0,
+            unlockedSkins: [0],
+            selectedWeapon: 0,
+            unlockedWeapons: [0],
+            rebirthBonus: 0,
+            friends: [], // array of objects { id, nickname }
+            upgrades: { hp: 0, damage: 0, speed: 0, coinMult: 0 }
+        };
+        window.state = state;
+
+        const PIRATE_NAMES = ["Barnaby", "Blackbeard", "Calico", "Davy", "Morgan", "Flint", "Silver", "Drake", "Hook", "Rackham", "Bartholomew", "Kid", "Vane", "Bonny", "Read"];
+
+        const SKIN_NAMES = [
+            "Deckhand Swab", "Salty Sailor", "Buccaneer Recruit", "First Mate", "Quartermaster",
+            "Swashbuckler", "Corsair Rogue", "Sea Dog", "Cannonier", "Gunslinger Pirate",
+            "Scurvy Captain", "Marauder", "Iron Hide Raider", "Shadow Buccaneer", "Crimson Captain",
+            "Storm Navigator", "Deep Sea Warden", "Golden Galleon Captain", "Voodoo Witch Doctor", "Ghost Corsair",
+            "Kraken Hunter", "Abyssal Raider", "Tide Caller", "Bermuda Phantom", "Sirens Guard",
+            "Neptunes Champion", "Davy Jones Sentinel", "Leviathan Master", "Skeletal Corsair", "Dread Pirate Lord",
+            "Sunken King", "Cursed Captain", "Phantom Marauder", "Abyssal Commander", "Ocean Warlord",
+            "Titan Buccaneer", "Ashen Raider", "Infernal Captain", "Vortex Sentinel", "Stormbringer",
+            "Rogue Admiral", "High Sea Conqueror", "Void Mariner", "Starlight Corsair", "Celestial Captain",
+            "Immortal Swashbuckler", "Mythic Sea God", "Abyssal Overlord", "Kraken Sovereign", "Kraken Lord",
+            "Galactic Pirate", "Nebula Voyager", "Dark Matter Corsair", "Supernova Buccaneer", "Cosmic Privateer",
+            "Solar Flare Raider", "Black Hole Captain", "Quasar Vanguard", "Astral Swashbuckler", "Stardust Marauder",
+            "Chrono Corsair", "Temporal Navigator", "Infinity Pirate", "Eclipse Captain", "Void Sovereign",
+            "Godking Swashbuckler", "Omni Pirate Lord", "Multiverse Marauder", "Primordial Corsair", "Singularity King",
+            "Aetherial Conqueror", "Titanis Sea Lord", "Infinite Kraken Master", "Apex Conqueror", "Pirate Overlord Alpha"
+        ];
+
+        const SKINS = Array.from({ length: 75 }, (_, i) => ({
+            id: i,
+            name: SKIN_NAMES[i] || `Pirate Skin Tier ${i + 1}`,
+            price: i === 0 ? 0 : Math.floor(150 * Math.pow(1.18, i)),
+            color: `hsl(${(i * 23) % 360}, 75%, 50%)`,
+            hatColor: `hsl(${(i * 23 + 180) % 360}, 80%, 40%)`,
+            buffText: `+${(i * 2)}% HP & DMG`,
+            hpMult: i * 0.02,
+            dmgMult: i * 0.02,
+            spdMult: i * 0.005,
+            regen: i > 10 ? i * 0.2 : 0
+        }));
+
+        const WEAPON_NAMES = [
+            "Rusty Cutlass", "Boarding Saber", "Iron Dagger", "Flintlock Stiletto", "Mariner Broadsword",
+            "Corsair Rapier", "Harpoon Blade", "Pirate Scimitar", "Heavy Cutlass", "Hook Hand Blade",
+            "Brass Knuckle Saber", "Shipwright Axe", "Galleon Halberd", "Voodoo Stinger", "Shadow Cutlass",
+            "Crimson Broadsword", "Thunder Katana", "Gold-Gilded Saber", "Anchor Cleaver", "Spectral Dagger",
+            "Kraken Fang", "Abyssal Trident", "Tidal Claymore", "Ghost Flame Blade", "Siren Whisper",
+            "Neptunes Spear", "Davy Jones Harpoon", "Leviathan Tooth", "Skeletal Scythe", "Dreadlord Greatsword",
+            "Sunken Blade", "Cursed Rapier", "Phantom Scimitar", "Abyssal Executioner", "Ocean Slasher",
+            "Titan Cleaver", "Ashen Broadsword", "Infernal Glaive", "Vortex Edge", "Storm Edge",
+            "Admiral Saber", "Conqueror Greatsword", "Void Scythe", "Starlight Rapier", "Celestial Blade",
+            "Immortal Cutlass", "Mythic Trident", "Abyssal Warblade", "Sovereign Greatsword", "Soul Reaper",
+            "Nebula Slicer", "Cosmic Katana", "Dark Matter Edge", "Supernova Broadsword", "Stardust Rapier",
+            "Solar Cleaver", "Quasar Warblade", "Void Executioner", "Astral Trident", "Galactic Scimitar",
+            "Temporal Blade", "Chrono Scythe", "Eclipse Greatsword", "Singularity Slicer", "Infinity Blade",
+            "Omni Reaper", "Primordial Warblade", "Godking Trident", "Multiverse Executioner", "Aether Blade",
+            "Titanis Destroyer", "Apex Soul Reaper", "Cosmic Conqueror", "Genesis Blade", "Oblivion Slasher"
+        ];
+
+        const WEAPONS = Array.from({ length: 75 }, (_, i) => ({
+            id: i,
+            name: WEAPON_NAMES[i] || `Weapon Tier ${i + 1}`,
+            price: i === 0 ? 0 : Math.floor(180 * Math.pow(1.19, i)),
+            damage: 25 + i * 4,
+            range: 65 + Math.floor(i * 1.1),
+            color: `hsl(${(i * 29 + 60) % 360}, 85%, 55%)`
+        }));
+
+        let respawnTimer = 0;
+        let isRespawning = false;
+
+        // Helper: Calculate exact bot stat multipliers based on level tiers
+        function getBotStatsMultiplier(level) {
+            let hpMult = 1;
+            let dmgMult = 1;
+            let flatHp = 0;
+            let flatDmg = 0;
+            let speedMult = 1;
+
+            // Tier 1: Levels 1-50 (+1% compounding per level)
+            const tier1Lvl = Math.min(level, 50);
+            const compoundingT1 = Math.pow(1.01, tier1Lvl);
+            hpMult = compoundingT1;
+            dmgMult = compoundingT1;
+
+            // Tier 2: Levels 51-75 (+2.5% compounding per level)
+            if (level > 50) {
+                const tier2Lvl = Math.min(level - 50, 25);
+                const compoundingT2 = Math.pow(1.025, tier2Lvl);
+                hpMult *= compoundingT2;
+                dmgMult *= compoundingT2;
+            }
+
+            // Tier 3: Levels 76-90 (+5 HP & +5 DMG per level above 75)
+            if (level > 75) {
+                const tier3Lvl = Math.min(level - 75, 15);
+                flatHp += tier3Lvl * 5;
+                flatDmg += tier3Lvl * 5;
+            }
+
+            // Tier 4: Levels 91-100 (+10 HP & +10 DMG per level above 90)
+            if (level > 90) {
+                const tier4Lvl = level - 90;
+                flatHp += 15 * 5 + tier4Lvl * 10;
+                flatDmg += 15 * 5 + tier4Lvl * 10;
+            }
+
+            // Extreme Boss Difficulty Tier: Levels 98-100
+            if (level >= 98) {
+                const bossTier = level - 97;
+                hpMult *= (1.4 + bossTier * 0.3);
+                dmgMult *= (1.3 + bossTier * 0.25);
+                speedMult = 1.15 + bossTier * 0.08;
+            }
+
+            return { hpMult, dmgMult, flatHp, flatDmg, speedMult };
+        }
+
+        /* --- ENTITY CLASS --- */
+        class Entity {
+            constructor(x, y, isBot = false, name = "Pirate", level = 1, skinId = 0, weaponId = 0) {
+                this.x = x;
+                this.y = y;
+                this.isBot = isBot;
+                this.name = name;
+                this.level = level;
+                this.skin = SKINS[skinId] || SKINS[0];
+                this.weapon = WEAPONS[weaponId] || WEAPONS[0];
+                this.alive = true;
+                this.angle = Math.random() * Math.PI * 2;
+                this.radius = 24;
+
+                this.isAggroed = !isBot;
+                this.detectionRadius = 240;
+                this.wanderAngle = Math.random() * Math.PI * 2;
+                this.wanderTimer = 0;
+
+                if (isBot) {
+                    const stats = getBotStatsMultiplier(level);
+                    const baseHp = 100;
+                    this.maxHp = Math.round(baseHp * stats.hpMult + stats.flatHp);
+                    this.hp = this.maxHp;
+
+                    const baseDmg = this.weapon.damage;
+                    this.damage = Math.round(baseDmg * stats.dmgMult + stats.flatDmg);
+
+                    const baseSpd = 210 * stats.speedMult;
+                    this.speed = baseSpd * 0.82;
+                } else {
+                    let lvlMult = Math.pow(1.01, Math.min(level, 50));
+                    const baseHp = 100 + (state.upgrades.hp * 15) + state.rebirthBonus * 10;
+                    this.maxHp = Math.round(baseHp * (1 + (this.skin.hpMult || 0)));
+                    this.hp = this.maxHp;
+
+                    const baseDmg = this.weapon.damage + (state.upgrades.damage * 5) + state.rebirthBonus * 2;
+                    this.damage = baseDmg * (1 + (this.skin.dmgMult || 0));
+
+                    const baseSpd = 210 + (state.upgrades.speed * 12) + state.rebirthBonus * 4;
+                    this.speed = baseSpd * (1 + (this.skin.spdMult || 0));
+                }
+
+                this.slashTimer = 0;
+                this.slashDuration = isBot && level >= 98 ? 0.25 : 0.35;
+                this.isSlashing = false;
+
+                this.dashCharge = 0;
+                this.maxDashCharge = 1.0;
+                this.isChargingDash = false;
+                this.isDashing = false;
+                this.dashSpeed = 0;
+                this.dashTimer = 0;
+
+                this.target = null;
+            }
+
+            chargeDash(dt) {
+                if (this.isDashing || this.isSlashing) return;
+                this.isChargingDash = true;
+                this.dashCharge = Math.min(this.maxDashCharge, this.dashCharge + dt * 1.5);
+            }
+
+            releaseDash() {
+                if (!this.isChargingDash) return;
+                const chargeRatio = this.dashCharge / this.maxDashCharge;
+                this.isChargingDash = false;
+                this.dashCharge = 0;
+
+                if (chargeRatio > 0.25) {
+                    this.isDashing = true;
+                    this.dashSpeed = this.speed * (2.2 + chargeRatio * 1.8);
+                    this.dashTimer = 0.22 + chargeRatio * 0.18;
+                } else {
+                    this.slash();
+                }
+            }
+
+            update(dt) {
+                if (!this.alive) return;
+
+                if (this.skin.regen && this.hp < this.maxHp) {
+                    this.hp = Math.min(this.maxHp, this.hp + this.skin.regen * dt);
+                }
+
+                if (this.isDashing) {
+                    this.x += Math.cos(this.angle) * this.dashSpeed * dt;
+                    this.y += Math.sin(this.angle) * this.dashSpeed * dt;
+                    this.dashTimer -= dt;
+                    if (this.dashTimer <= 0) {
+                        this.isDashing = false;
+                        this.slash();
+                    }
+                }
+
+                const distFromCenter = Math.hypot(this.x, this.y);
+                const wallLimit = gameMode === 'SOLO' ? stormRadius : arenaRadius - this.radius;
+
+                if (distFromCenter > wallLimit) {
+                    if (gameMode === 'SOLO') {
+                        this.hp -= 25 * dt;
+                        if (this.hp <= 0) this.die();
+                    } else {
+                        const pushAngle = Math.atan2(this.y, this.x);
+                        this.x = Math.cos(pushAngle) * wallLimit;
+                        this.y = Math.sin(pushAngle) * wallLimit;
+                    }
+                }
+
+                // AI Detection, Storm Avoidance & Priority Combat Logic
+                if (this.isBot) {
+                    if (player && player.alive) {
+                        const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+                        if (distToPlayer <= this.detectionRadius) {
+                            this.isAggroed = true;
+                            this.target = player;
+                        }
+                    }
+
+                    if (this.isAggroed && this.target && this.target.alive) {
+                        const dx = this.target.x - this.x;
+                        const dy = this.target.y - this.y;
+                        const dist = Math.hypot(dx, dy);
+
+                        // Pure target lock: when fighting the player, charge directly with 0 storm care
+                        this.angle = Math.atan2(dy, dx);
+
+                        if (!this.isDashing) {
+                            this.x += Math.cos(this.angle) * this.speed * dt;
+                            this.y += Math.sin(this.angle) * this.speed * dt;
+                        }
+
+                        // Aggression tuning for high levels
+                        const dashProb = this.level >= 98 ? 0.08 : 0.02;
+                        const attackProb = this.level >= 98 ? 0.15 : 0.05;
+
+                        if (dist < this.weapon.range + 80 && Math.random() < dashProb && !this.isChargingDash) {
+                            this.chargeDash(dt);
+                        } else if (this.isChargingDash && (this.dashCharge > 0.4 || dist < this.weapon.range + 20)) {
+                            this.releaseDash();
+                        } else if (dist < this.weapon.range + 20 && Math.random() < attackProb) {
+                            this.slash();
+                        }
+                    } else {
+                        // Neutral Wandering AI - stays away from the storm on its own when idle
+                        this.wanderTimer -= dt;
+                        if (this.wanderTimer <= 0) {
+                            this.wanderAngle = Math.random() * Math.PI * 2;
+                            this.wanderTimer = 2 + Math.random() * 3;
+                        }
+
+                        // Steer away from storm edge while wandering/unprovoked
+                        if (gameMode === 'SOLO' && distFromCenter > stormRadius - 120) {
+                            this.wanderAngle = Math.atan2(-this.y, -this.x);
+                        }
+
+                        this.angle = this.wanderAngle;
+                        this.x += Math.cos(this.angle) * (this.speed * 0.4) * dt;
+                        this.y += Math.sin(this.angle) * (this.speed * 0.4) * dt;
+                    }
+                }
+
+                if (this.slashTimer > 0) {
+                    this.slashTimer -= dt;
+                    if (this.slashTimer <= 0) this.isSlashing = false;
+                }
+            }
+
+            slash() {
+                if (this.isSlashing) return;
+                this.isSlashing = true;
+                this.slashTimer = this.slashDuration;
+
+                const targets = [player, ...bots].filter(e => e && e.alive && e !== this);
+                targets.forEach(t => {
+                    const dx = t.x - this.x;
+                    const dy = t.y - this.y;
+                    const dist = Math.hypot(dx, dy);
+                    const rangeMod = activeOneTime.giant && !this.isBot ? 1.5 : 1.0;
+
+                    if (dist <= (this.weapon.range * rangeMod) + t.radius) {
+                        t.takeDamage(this.damage, this);
+                    }
+                });
+            }
+
+            takeDamage(amount, attacker) {
+                if (!this.alive) return;
+
+                // Invincibility while paused (PVP & Co-Op) or with shop shield
+                if (this === player && (window.isGamePaused || activeOneTime.shield)) {
+                    if (window.isGamePaused) return; // Completely immune while paused
+                    amount *= 0.5;
+                }
+
+                if (this.isBot) {
+                    this.isAggroed = true;
+                    if (attacker) this.target = attacker;
+                }
+
+                this.hp -= amount;
+                if (this.hp <= 0) {
+                    if (attacker === player) {
+                        totalKills++;
+                        const reward = 15 + this.level * 3;
+                        inGameGoldEarned += reward;
+                        state.gold += reward;
+                    }
+                    this.die();
+                }
+            }
+
+            die() {
+                this.alive = false;
+                const coinsToDrop = Math.max(3, Math.min(10, Math.floor(this.level * 1.5)));
+                for (let i = 0; i < coinsToDrop; i++) {
+                    coins.push({
+                        x: this.x + (Math.random() - 0.5) * 60,
+                        y: this.y + (Math.random() - 0.5) * 60,
+                        value: 1
+                    });
+                }
+            }
+
+            draw() {
+                if (!this.alive) return;
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                if (this.isDashing || this.dashCharge > 0.5) {
+                    ctx.beginPath();
+                    ctx.arc(-Math.cos(this.angle) * 15, -Math.sin(this.angle) * 15, this.radius * 0.9, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(245, 158, 11, 0.4)';
+                    ctx.fill();
+                }
+
+                ctx.rotate(this.angle);
+
+                // Body & Skin
+                ctx.beginPath(); ctx.arc(0, 0, this.radius + 2, 0, Math.PI * 2);
+                ctx.fillStyle = '#1e293b'; ctx.fill();
+
+                ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.skin.color || '#3b82f6'; ctx.fill();
+                ctx.lineWidth = 3.5; ctx.strokeStyle = '#0f172a'; ctx.stroke();
+
+                // Eyes & Details
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(6, -6, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath(); ctx.arc(7, -6, 2, 0, Math.PI * 2); ctx.fill();
+
+                ctx.fillStyle = '#090d16';
+                ctx.beginPath(); ctx.arc(6, 6, 4.5, 0, Math.PI * 2); ctx.fill();
+
+                // Pirate Hat
+                ctx.beginPath();
+                ctx.ellipse(-4, 0, this.radius * 0.85, this.radius * 1.05, 0, -Math.PI / 2, Math.PI / 2);
+                ctx.fillStyle = this.skin.hatColor || '#f59e0b'; ctx.fill();
+                ctx.lineWidth = 2; ctx.strokeStyle = '#fef08a'; ctx.stroke();
+
+                // Unique Realistic Weapon Geometry
+                ctx.save();
+                ctx.translate(10, this.radius - 4);
+
+                let swingAngle = 0;
+                if (this.isSlashing) {
+                    const progress = 1 - (this.slashTimer / this.slashDuration);
+                    swingAngle = -Math.PI * 0.6 + Math.sin(progress * Math.PI) * (Math.PI * 1.2);
+                } else if (this.isChargingDash) {
+                    swingAngle = -Math.PI * 0.4;
+                }
+
+                ctx.rotate(swingAngle);
+
+                // Handle Shaft
+                ctx.fillStyle = '#78350f'; 
+                ctx.fillRect(-2, -3, this.weapon.range * 0.6, 6);
+
+                const bladeLen = this.weapon.range * 0.8;
+                const typeIndex = (this.weapon.id % 10);
+
+                ctx.fillStyle = this.weapon.color || '#e2e8f0';
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1.5;
+
+                ctx.beginPath();
+                if (typeIndex === 9 || this.weapon.name.toLowerCase().includes('trident')) { 
+                    // Trident Model with 3 distinct prongs
+                    ctx.rect(bladeLen - 12, -10, 3, 20); // Crossbar
+                    ctx.rect(bladeLen - 10, -12, 16, 3); // Top prong
+                    ctx.rect(bladeLen - 10, -1.5, 20, 3); // Middle main spearhead
+                    ctx.rect(bladeLen - 10, 9, 16, 3); // Bottom prong
+                } else if (typeIndex === 8 || this.weapon.name.toLowerCase().includes('scythe')) { 
+                    // Curved Scythe Crescent Blade
+                    ctx.arc(bladeLen - 5, 0, 18, -Math.PI * 0.5, Math.PI * 0.3);
+                    ctx.lineTo(bladeLen + 5, 12);
+                } else if (typeIndex === 7 || this.weapon.name.toLowerCase().includes('axe')) { 
+                    // Double-headed Battle Axe
+                    ctx.moveTo(bladeLen - 8, -2);
+                    ctx.lineTo(bladeLen + 2, -16);
+                    ctx.lineTo(bladeLen + 14, -10);
+                    ctx.lineTo(bladeLen + 4, 0);
+                    ctx.lineTo(bladeLen + 14, 10);
+                    ctx.lineTo(bladeLen + 2, 16);
+                    ctx.lineTo(bladeLen - 8, 2);
+                } else if (typeIndex === 6 || this.weapon.name.toLowerCase().includes('harpoon')) { 
+                    // Barbed Harpoon Spear
+                    ctx.moveTo(4, -1.5);
+                    ctx.lineTo(bladeLen + 10, -1.5);
+                    ctx.lineTo(bladeLen + 16, 0);
+                    ctx.lineTo(bladeLen + 10, 1.5);
+                    ctx.lineTo(bladeLen + 4, 6);
+                    ctx.lineTo(bladeLen + 6, 1.5);
+                    ctx.lineTo(4, 1.5);
+                } else if (typeIndex === 5 || this.weapon.name.toLowerCase().includes('rapier')) { 
+                    // Needle Thin Rapier with Guard Basket
+                    ctx.arc(0, 0, 7, 0, Math.PI * 2);
+                    ctx.moveTo(4, -1); ctx.lineTo(bladeLen + 18, 0); ctx.lineTo(4, 1);
+                } else { 
+                    // Cutlass / Katana / Broadsword with Crossguard
+                    ctx.fillRect(8, -6, 3, 12); // Guard
+                    ctx.moveTo(11, -3); 
+                    ctx.lineTo(bladeLen, -4); 
+                    ctx.lineTo(bladeLen + 10, 0); 
+                    ctx.lineTo(bladeLen, 4); 
+                    ctx.lineTo(11, 3);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+                ctx.restore();
+
+                // Slashing Arc Effect
+                if (this.isSlashing) {
+                    const progress = 1 - (this.slashTimer / this.slashDuration);
+                    const currentArc = this.angle - Math.PI * 0.6 + progress * (Math.PI * 1.2);
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.weapon.range, currentArc - 0.4, currentArc + 0.1);
+                    ctx.strokeStyle = this.weapon.color || '#f59e0b';
+                    ctx.lineWidth = 12; ctx.lineCap = 'round';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // Clean Overhead Title & Health Bar
+                ctx.save();
+                ctx.translate(this.x, this.y - this.radius - 20);
+
+                ctx.font = 'bold 11px Nunito, sans-serif';
+                ctx.fillStyle = this === player ? '#6ee7b7' : '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.name, 0, -8);
+
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(-20, -4, 40, 6);
+                ctx.fillStyle = '#22c55e';
+                ctx.fillRect(-20, -4, Math.max(0, (this.hp / this.maxHp) * 40), 6);
+
+                ctx.restore();
+            }
+        }
+
+        /* --- MAIN GAME LOOP --- */
+        function gameLoop(now) {
+            if (!isRunning) return;
+            const dt = Math.min((now - lastTime) / 1000, 0.1);
+            lastTime = now;
+
+            // In Solo mode, if paused, freeze storm, movement, and bot updates completely
+            if (window.isGamePaused && gameMode === 'SOLO') {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            if (gameMode === 'SOLO') {
+                if (stormRadius > 180) stormRadius -= 14 * dt;
+            } else {
+                stormRadius = arenaRadius;
+            }
+
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            ctx.scale(dpr, dpr);
+
+            const isTyping = document.activeElement === document.getElementById('inputChatMessage');
+
+            if (player && player.alive) {
+                let moveX = 0, moveY = 0;
+                // Block input movement while game is paused
+                if (!isTyping && !window.isGamePaused) {
+                    if (keys['KeyW'] || keys['ArrowUp']) moveY -= 1;
+                    if (keys['KeyS'] || keys['ArrowDown']) moveY += 1;
+                    if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 1;
+                    if (keys['KeyD'] || keys['ArrowRight']) moveX += 1;
+                }
+
+                if (moveX !== 0 || moveY !== 0) {
+                    const len = Math.hypot(moveX, moveY);
+                    player.x += (moveX / len) * player.speed * dt;
+                    player.y += (moveY / len) * player.speed * dt;
+                }
+
+                if (!isTyping && !window.isGamePaused && (keys['Space'] || isMouseDown)) {
+                    player.chargeDash(dt);
+                } else if (player.isChargingDash) {
+                    player.releaseDash();
+                }
+
+                if (!window.isGamePaused) {
+                    player.angle = Math.atan2(mouseY - window.innerHeight / 2, mouseX - window.innerWidth / 2);
+                }
+                player.update(dt);
+
+                if (isMultiplayer && typeof window.syncServerMultiplayerPos === 'function') {
+                    window.syncServerMultiplayerPos(currentSelectedServer, {
+                        x: player.x,
+                        y: player.y,
+                        angle: player.angle,
+                        hp: player.hp,
+                        maxHp: player.maxHp,
+                        alive: player.alive
+                    });
+                }
+            }
+
+            if (player) {
+                camera.x = player.x;
+                camera.y = player.y;
+            }
+
+            // Update bots (only if not paused in multiplayer mode)
+            if (!window.isGamePaused) {
+                bots.forEach(b => b.update(dt));
+            }
+
+            for (let i = coins.length - 1; i >= 0; i--) {
+                const c = coins[i];
+                if (player && player.alive) {
+                    const d = Math.hypot(player.x - c.x, player.y - c.y);
+                    const mag = activeOneTime.magnet ? 250 : 50;
+                    if (d < mag && !window.isGamePaused) {
+                        c.x += (player.x - c.x) * 0.1;
+                        c.y += (player.y - c.y) * 0.1;
+                    }
+                    if (d < player.radius + 10 && !window.isGamePaused) {
+                        const earned = Math.floor(c.value * (1 + (state.upgrades.coinMult || 0) * 0.1));
+                        inGameGoldEarned += earned;
+                        state.gold += earned;
+                        saveState();
+                        coins.splice(i, 1);
+                    }
+                }
+            }
+
+            // Draw World Canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(window.innerWidth / 2 - camera.x, window.innerHeight / 2 - camera.y);
+
+            // Ocean Background
+            ctx.fillStyle = '#050a14';
+            ctx.fillRect(camera.x - window.innerWidth * 2, camera.y - window.innerHeight * 2, window.innerWidth * 4, window.innerHeight * 4);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(0, 0, arenaRadius, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.fillStyle = '#0e243a';
+            ctx.fillRect(-arenaRadius, -arenaRadius, arenaRadius * 2, arenaRadius * 2);
+
+            // Grid Lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 2;
+            const sz = 100;
+            const sx = Math.floor((camera.x - window.innerWidth) / sz) * sz;
+            const ex = camera.x + window.innerWidth;
+            const sy = Math.floor((camera.y - window.innerHeight) / sz) * sz;
+            const ey = camera.y + window.innerHeight;
+
+            for (let x = sx; x < ex; x += sz) {
+                ctx.beginPath(); ctx.moveTo(x, sy); ctx.lineTo(x, ey); ctx.stroke();
+            }
+            for (let y = sy; y < ey; y += sz) {
+                ctx.beginPath(); ctx.moveTo(sx, y); ctx.lineTo(ex, y); ctx.stroke();
+            }
+            ctx.restore();
+
+            // Arena Boundary & Storm
+            ctx.beginPath(); ctx.arc(0, 0, arenaRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = gameMode === 'SOLO' ? '#ef4444' : '#38bdf8';
+            ctx.lineWidth = 14; ctx.stroke();
+
+            if (gameMode === 'SOLO') {
+                ctx.beginPath(); ctx.arc(0, 0, stormRadius, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)'; ctx.lineWidth = 6; ctx.stroke();
+            }
+
+            // Draw Coins
+            coins.forEach(c => {
+                ctx.beginPath(); ctx.arc(c.x, c.y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#facc15'; ctx.fill();
+                ctx.lineWidth = 1.5; ctx.strokeStyle = '#b45309'; ctx.stroke();
+            });
+
+            // Draw Remote Online Players
+            if (isMultiplayer && window.remotePlayers) {
+                Object.values(window.remotePlayers).forEach(rp => {
+                    if (rp.alive) {
+                        ctx.save();
+                        ctx.translate(rp.x, rp.y);
+                        ctx.rotate(rp.angle || 0);
+
+                        ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2);
+                        ctx.fillStyle = (SKINS[rp.skinId] || SKINS[0]).color; ctx.fill();
+                        ctx.lineWidth = 3.5; ctx.strokeStyle = '#0f172a'; ctx.stroke();
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath(); ctx.arc(6, -6, 4, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = '#0f172a';
+                        ctx.beginPath(); ctx.arc(7, -6, 2, 0, Math.PI * 2); ctx.fill();
+
+                        ctx.restore();
+
+                        ctx.save();
+                        ctx.translate(rp.x, rp.y - 44);
+                        ctx.font = 'bold 11px Nunito, sans-serif';
+                        ctx.fillStyle = '#38bdf8';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(rp.name || "Pirate", 0, -8);
+
+                        ctx.fillStyle = '#0f172a';
+                        ctx.fillRect(-20, -4, 40, 6);
+                        ctx.fillStyle = '#38bdf8';
+                        ctx.fillRect(-20, -4, Math.max(0, ((rp.hp || 100) / (rp.maxHp || 100)) * 40), 6);
+                        ctx.restore();
+                    }
+                });
+            }
+
+            // Draw Bots & Player
+            bots.forEach(b => b.draw());
+            if (player) player.draw();
+
+            ctx.restore();
+
+            if (player) {
+                const hpText = document.getElementById('hudHpText');
+                const hpBar = document.getElementById('hudHpBar');
+                const hudCoins = document.getElementById('hudCoins');
+
+                if (hpText) hpText.innerText = `${Math.max(0, Math.floor(player.hp))} / ${player.maxHp}`;
+                if (hpBar) hpBar.style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
+                if (hudCoins) hudCoins.innerText = inGameGoldEarned;
+
+                const dashBarContainer = document.getElementById('hudDashBarContainer');
+                const dashBar = document.getElementById('hudDashBar');
+                if (dashBarContainer && dashBar) {
+                    if (player.dashCharge > 0) {
+                        dashBarContainer.classList.remove('opacity-0');
+                        dashBar.style.width = `${(player.dashCharge / player.maxDashCharge) * 100}%`;
+                    } else {
+                        dashBarContainer.classList.add('opacity-0');
+                    }
+                }
+
+                const lvlBadge = document.getElementById('hudLevelBadge');
+                if (lvlBadge) {
+                    if (gameMode === 'SOLO') {
+                        lvlBadge.innerText = `Level ${state.selectedLevel}`;
+                    } else {
+                        lvlBadge.innerText = `Wave ${currentWave}`;
+                    }
+                }
+                
+                const remoteCount = isMultiplayer && window.remotePlayers ? Object.keys(window.remotePlayers).length : 0;
+                const alive = bots.filter(b => b.alive).length + (player.alive ? 1 : 0) + remoteCount;
+                
+                const aliveText = document.getElementById('hudAliveText');
+                const stormText = document.getElementById('hudStormText');
+                if (aliveText) aliveText.innerText = alive;
+                if (stormText) stormText.innerText = gameMode === 'SOLO' ? 'CLOSING' : 'SAFE ARENA';
+
+                if (!player.alive) {
+                    if (gameMode === 'PVP_10') {
+                        if (!isRespawning) {
+                            isRespawning = true;
+                            respawnTimer = 10;
+                            saveState();
+                        }
+                        respawnTimer -= dt;
+                        ctx.save();
+                        ctx.font = 'bold 32px Fredoka One, cursive';
+                        ctx.fillStyle = '#f87171';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`RESPAWNING IN ${Math.ceil(respawnTimer)}s...`, window.innerWidth / 2, window.innerHeight / 2);
+                        ctx.restore();
+
+                        if (respawnTimer <= 0) {
+                            isRespawning = false;
+                            inGameGoldEarned = 0;
+                            player = new Entity((Math.random() - 0.5) * 600, (Math.random() - 0.5) * 600, false, state.pirateName, state.selectedLevel, state.selectedSkin, state.selectedWeapon);
+                        }
+                    } else {
+                        currentWave = 1;
+                        endGame(false);
+                        return;
+                    }
+                }
+                else if (gameMode === 'COOP_2' && bots.filter(b => b.alive).length === 0) {
+                    currentWave++;
+                    spawnCoopWave(currentWave);
+                }
+                else if (alive === 1 && gameMode === 'SOLO') { 
+                    endGame(true); 
+                    return; 
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        /* --- GAME START & LEVEL MANAGEMENT --- */
+        function startGameCurrentLevel() {
+            closeModalAndPlay();
+            window.isGamePaused = false;
+            
+            // Ensure main menu overlay is completely hidden so canvas map & pirates are visible!
+            const menuMain = document.getElementById('menuMain');
+            const modalOverlay = document.getElementById('modalOverlay');
+            if (menuMain) menuMain.classList.add('hidden');
+            if (modalOverlay) modalOverlay.classList.add('hidden');
+
+            inGameGoldEarned = 0;
+            totalKills = 0;
+            stormRadius = arenaRadius;
+            activeOneTime = { speed: false, shield: false, giant: false, magnet: false };
+            coins = [];
+            bots = [];
+
+            isMultiplayer = (gameMode === 'PVP_10' || gameMode === 'COOP_2');
+
+            player = new Entity(0, 0, false, state.pirateName, state.selectedLevel, state.selectedSkin, state.selectedWeapon);
+            camera.x = 0;
+            camera.y = 0;
+
+            if (gameMode === 'SOLO') {
+                const botGearTier = Math.min(74, Math.floor((state.selectedLevel - 1) / 2));
+                for (let i = 0; i < 9; i++) {
+                    const angle = (i / 9) * Math.PI * 2;
+                    const dist = 300 + Math.random() * 400;
+                    const name = PIRATE_NAMES[i % PIRATE_NAMES.length];
+                    bots.push(new Entity(
+                        Math.cos(angle) * dist,
+                        Math.sin(angle) * dist,
+                        true,
+                        name,
+                        state.selectedLevel,
+                        botGearTier,
+                        botGearTier
+                    ));
+                }
+                const chatBox = document.getElementById('hudChatBox');
+                const btnChat = document.getElementById('btnToggleChat');
+                if (chatBox) chatBox.classList.add('hidden');
+                if (btnChat) btnChat.classList.add('hidden');
+            } else if (gameMode === 'COOP_2') {
+                currentWave = 1;
+                spawnCoopWave(currentWave);
+                const chatBox = document.getElementById('hudChatBox');
+                const btnChat = document.getElementById('btnToggleChat');
+                if (chatBox) chatBox.classList.remove('hidden');
+                if (btnChat) btnChat.classList.remove('hidden');
+            } else {
+                const chatBox = document.getElementById('hudChatBox');
+                const btnChat = document.getElementById('btnToggleChat');
+                if (chatBox) chatBox.classList.remove('hidden');
+                if (btnChat) btnChat.classList.remove('hidden');
+            }
+
+            const hudTop = document.getElementById('hudTop');
+            const hudShop = document.getElementById('hudInGameShop');
+            const chatBox = document.getElementById('hudChatBox');
+            const modeText = document.getElementById('hudServerModeText');
+            const nameText = document.getElementById('hudServerNameText');
+
+            if (hudTop) hudTop.classList.remove('opacity-0');
+            if (hudShop) hudShop.classList.remove('opacity-0');
+            if (chatBox && gameMode !== 'SOLO') chatBox.classList.remove('opacity-0');
+            if (modeText) modeText.innerText = gameMode;
+            if (nameText) nameText.innerText = `SERVER #${currentSelectedServer + 1}`;
+
+            isRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function spawnCoopWave(wave) {
+            bots = [];
+            const count = 4 + wave * 2;
+            const gearTier = Math.min(74, Math.floor(wave / 2));
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const dist = 400 + Math.random() * 300;
+                bots.push(new Entity(
+                    Math.cos(angle) * dist,
+                    Math.sin(angle) * dist,
+                    true,
+                    `Wave Enemy ${i + 1}`,
+                    wave,
+                    gearTier,
+                    gearTier
+                ));
+            }
+        }
+
+        /* --- CHAT SYSTEM --- */
+        function toggleChat() {
+            const input = document.getElementById('inputChatMessage');
+            if (input) input.focus();
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('inputChatMessage');
+            if (!input) return;
+            const msg = input.value.trim();
+            if (msg) {
+                if (typeof window.broadcastChatMessage === 'function') {
+                    window.broadcastChatMessage(msg);
+                } else {
+                    addChatMessage(state.pirateName, msg);
+                }
+                input.value = '';
+            }
+        }
+
+        function addChatMessage(sender, text) {
+            const box = document.getElementById('chatMessages');
+            if (!box) return;
+            const div = document.createElement('div');
+            div.className = 'text-[11px]';
+            div.innerHTML = `<span class="font-bold text-amber-400">${sender}:</span> <span class="text-slate-200">${text}</span>`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function switchServerMode(newMode) {
+            gameMode = newMode;
+            startGameCurrentLevel();
+        }
+
+        window.addEventListener('keydown', e => {
+            const chatInput = document.getElementById('inputChatMessage');
+            const isTyping = document.activeElement === chatInput;
+
+            if (isTyping) {
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) {
+                    e.stopPropagation();
+                }
+            } else {
+                keys[e.code] = true;
+            }
+
+            if (e.key === '/' && !isTyping) {
+                e.preventDefault();
+                toggleChat();
+            } else if (e.key === 'Enter' && isTyping) {
+                sendChatMessage();
+            }
+        });
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        window.addEventListener('mousemove', e => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        window.addEventListener('mousedown', e => {
+            isMouseDown = true;
+        });
+
+        window.addEventListener('mouseup', e => {
+            isMouseDown = false;
+            if (isRunning && player && player.alive) {
+                player.releaseDash();
+            }
+        });
+
+        /* --- UI & MODAL MANAGEMENT --- */
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+            const overlay = document.getElementById('modalOverlay');
+            if (overlay) overlay.classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        }
+
+        function closeModalAndPlay() {
+            const overlay = document.getElementById('modalOverlay');
+            if (overlay) overlay.classList.add('hidden');
+            const modals = ['menuMain', 'modalServers', 'modalFriends', 'modalLevels', 'modalSkins', 'modalWeapons', 'modalUpgrades', 'modalRebirth', 'modalGameOver'];
+            modals.forEach(m => {
+                const el = document.getElementById(m);
+                if (el) el.classList.add('hidden');
+            });
+        }
+
+        function openMenu() {
+            window.isGamePaused = true;
+            
+            // Auto-save progress made so far in this run
+            saveState();
+
+            // In Solo mode, pause the loop; in multiplayer keep loop alive for invincibility overlay rendering
+            if (gameMode === 'SOLO') {
+                isRunning = false;
+            }
+
+            const hudTop = document.getElementById('hudTop');
+            const hudShop = document.getElementById('hudInGameShop');
+            const chatBox = document.getElementById('hudChatBox');
+            const dashBar = document.getElementById('hudDashBarContainer');
+            const resumeBtn = document.getElementById('btnResumeGame');
+
+            if (hudTop) hudTop.classList.add('opacity-0');
+            if (hudShop) hudShop.classList.add('opacity-0');
+            if (chatBox) chatBox.classList.add('opacity-0');
+            if (dashBar) dashBar.classList.add('opacity-0');
+
+            if (resumeBtn) {
+                if (player && player.alive) {
+                    resumeBtn.classList.remove('hidden');
+                } else {
+                    resumeBtn.classList.add('hidden');
+                }
+            }
+
+            const overlay = document.getElementById('modalOverlay');
+            const menu = document.getElementById('menuMain');
+            if (overlay) overlay.classList.remove('hidden');
+            if (menu) menu.classList.remove('hidden');
+            updateUI();
+        }
+
+        function resumeGame() {
+            window.isGamePaused = false;
+            closeModalAndPlay();
+
+            // Ensure main menu overlay is completely hidden so canvas map & pirates are visible!
+            const menuMain = document.getElementById('menuMain');
+            const modalOverlay = document.getElementById('modalOverlay');
+            if (menuMain) menuMain.classList.add('hidden');
+            if (modalOverlay) modalOverlay.classList.add('hidden');
+
+            const hudTop = document.getElementById('hudTop');
+            const hudShop = document.getElementById('hudInGameShop');
+            const chatBox = document.getElementById('hudChatBox');
+
+            if (hudTop) hudTop.classList.remove('opacity-0');
+            if (hudShop) hudShop.classList.remove('opacity-0');
+            if (chatBox && gameMode !== 'SOLO') chatBox.classList.remove('opacity-0');
+
+            if (!isRunning) {
+                isRunning = true;
+                lastTime = performance.now();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+        window.resumeGame = resumeGame;
+
+        function loadStateLocal() {
+            try {
+                const saved = localStorage.getItem('yohoho_save_v2');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.assign(state, parsed);
+                    // Format friend list to support custom nicknames
+                    state.friends = state.friends.map(f => typeof f === 'string' ? { id: f, nickname: f } : f);
+                }
+            } catch (e) {}
+            window.saveStateLocalOnly = saveStateLocalOnly;
+            updateUI();
+        }
+
+        function saveStateLocalOnly() {
+            try {
+                localStorage.setItem('yohoho_save_v2', JSON.stringify(state));
+            } catch (e) {}
+        }
+
+        function saveState() {
+            saveStateLocalOnly();
+            if (typeof window.saveCloudData === 'function') {
+                window.saveCloudData({
+                    pirateName: state.pirateName,
+                    selectedSkin: state.selectedSkin,
+                    selectedWeapon: state.selectedWeapon
+                });
+            }
+            updateUI();
+        }
+
+        function savePirateName(name) {
+            state.pirateName = name.trim() || "Cap'n Pirate";
+            saveState();
+        }
+
+        function updateUI() {
+            const goldEl = document.getElementById('menuGoldText');
+            const lvlEl = document.getElementById('menuLevelText');
+            const btnLvlEl = document.getElementById('btnCurrentLevelNum');
+            const rebirthEl = document.getElementById('menuRebirthBonusText');
+            const nameEl = document.getElementById('inputPirateName');
+
+            if (goldEl) goldEl.innerHTML = `<i class="fa-solid fa-coins"></i> ${state.gold}`;
+            if (lvlEl) lvlEl.innerText = `${state.maxLevelUnlocked} / 100`;
+            if (btnLvlEl) btnLvlEl.innerText = state.selectedLevel;
+            if (rebirthEl) rebirthEl.innerText = `+${state.rebirthBonus} Stats`;
+            if (nameEl) nameEl.value = state.pirateName;
+
+            renderLevelGrid();
+            renderSkinsList();
+            renderWeaponsList();
+            renderUpgradesList();
+            renderRebirthShrine();
+            renderFriendsList();
+            renderServers();
+        }
+
+        function renderLevelGrid() {
+            const grid = document.getElementById('levelGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            for (let i = 1; i <= 100; i++) {
+                const btn = document.createElement('button');
+                const isUnlocked = i <= state.maxLevelUnlocked;
+                const isSelected = i === state.selectedLevel;
+
+                btn.className = `p-2.5 rounded-xl font-game text-xs flex flex-col items-center justify-center transition-all ${
+                    isSelected ? 'bg-amber-500 text-slate-950 ring-2 ring-white scale-105' :
+                    isUnlocked ? 'bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700' :
+                    'bg-slate-900/60 text-slate-600 border border-slate-800/80 cursor-not-allowed'
+                }`;
+                btn.innerHTML = `<span>${i}</span>`;
+                if (isUnlocked) {
+                    btn.onclick = () => {
+                        state.selectedLevel = i;
+                        saveState();
+                        closeModal('modalLevels');
+                        updateUI();
+                    };
+                }
+                grid.appendChild(btn);
+            }
+        }
+
+        function renderSkinsList() {
+            const container = document.getElementById('skinsList');
+            if (!container) return;
+            container.innerHTML = '';
+            SKINS.forEach(s => {
+                const isUnlocked = state.unlockedSkins.includes(s.id);
+                const isEquipped = state.selectedSkin === s.id;
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl border flex items-center justify-between gap-3 ${
+                    isEquipped ? 'bg-blue-950/60 border-blue-400' : 'bg-slate-900/80 border-slate-800'
+                }`;
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center border-2" style="background:${s.color}; border-color:${s.hatColor}">
+                            <i class="fa-solid fa-user-ninja text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <div class="font-game text-sm text-white">${s.name}</div>
+                            <div class="text-[10px] text-emerald-400 font-bold">${s.buffText}</div>
+                        </div>
+                    </div>
+                    <div>
+                        ${isEquipped ? '<span class="text-xs font-game text-blue-400 px-3 py-1 bg-blue-950 rounded-xl border border-blue-800">EQUIPPED</span>' :
+                          isUnlocked ? `<button onclick="equipSkin(${s.id})" class="btn-action bg-blue-600 hover:bg-blue-500 text-white font-game text-xs px-3 py-1.5 rounded-xl">EQUIP</button>` :
+                          `<button onclick="buySkin(${s.id})" class="btn-action bg-amber-500 hover:bg-amber-400 text-slate-950 font-game text-xs px-3 py-1.5 rounded-xl flex items-center gap-1"><i class="fa-solid fa-coins"></i> ${s.price}</button>`}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function buySkin(id) {
+            const skin = SKINS[id];
+            if (skin && state.gold >= skin.price && !state.unlockedSkins.includes(id)) {
+                state.gold -= skin.price;
+                state.unlockedSkins.push(id);
+                state.selectedSkin = id;
+                saveState();
+            }
+        }
+
+        function equipSkin(id) {
+            if (state.unlockedSkins.includes(id)) {
+                state.selectedSkin = id;
+                saveState();
+            }
+        }
+
+        function renderWeaponsList() {
+            const container = document.getElementById('weaponsList');
+            if (!container) return;
+            container.innerHTML = '';
+            WEAPONS.forEach(w => {
+                const isUnlocked = state.unlockedWeapons.includes(w.id);
+                const isEquipped = state.selectedWeapon === w.id;
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl border flex items-center justify-between gap-3 ${
+                    isEquipped ? 'bg-red-950/60 border-red-400' : 'bg-slate-900/80 border-slate-800'
+                }`;
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center border border-slate-700" style="color:${w.color}">
+                            <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="font-game text-sm text-white">${w.name}</div>
+                            <div class="text-[10px] text-red-400 font-bold">DMG: ${w.damage} | RNG: ${w.range}</div>
+                        </div>
+                    </div>
+                    <div>
+                        ${isEquipped ? '<span class="text-xs font-game text-red-400 px-3 py-1 bg-red-950 rounded-xl border border-red-800">EQUIPPED</span>' :
+                          isUnlocked ? `<button onclick="equipWeapon(${w.id})" class="btn-action bg-red-600 hover:bg-red-500 text-white font-game text-xs px-3 py-1.5 rounded-xl">EQUIP</button>` :
+                          `<button onclick="buyWeapon(${w.id})" class="btn-action bg-amber-500 hover:bg-amber-400 text-slate-950 font-game text-xs px-3 py-1.5 rounded-xl flex items-center gap-1"><i class="fa-solid fa-coins"></i> ${w.price}</button>`}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function buyWeapon(id) {
+            const w = WEAPONS[id];
+            if (w && state.gold >= w.price && !state.unlockedWeapons.includes(id)) {
+                state.gold -= w.price;
+                state.unlockedWeapons.push(id);
+                state.selectedWeapon = id;
+                saveState();
+            }
+        }
+
+        function equipWeapon(id) {
+            if (state.unlockedWeapons.includes(id)) {
+                state.selectedWeapon = id;
+                saveState();
+            }
+        }
+
+        function renderUpgradesList() {
+            const container = document.getElementById('upgradesList');
+            if (!container) return;
+            container.innerHTML = '';
+            const list = [
+                { key: 'hp', name: 'Max Health', stat: `+${state.upgrades.hp * 15} HP`, cost: (state.upgrades.hp + 1) * 150 },
+                { key: 'damage', name: 'Attack Damage', stat: `+${state.upgrades.damage * 5} DMG`, cost: (state.upgrades.damage + 1) * 200 },
+                { key: 'speed', name: 'Movement Speed', stat: `+${state.upgrades.speed * 12} SPD`, cost: (state.upgrades.speed + 1) * 180 },
+                { key: 'coinMult', name: 'Coin Magnet & Value', stat: `+${state.upgrades.coinMult * 10}% Gold`, cost: (state.upgrades.coinMult + 1) * 250 }
+            ];
+
+            list.forEach(u => {
+                const card = document.createElement('div');
+                card.className = 'p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between';
+                card.innerHTML = `
+                    <div>
+                        <div class="font-game text-sm text-white">${u.name} (Lvl ${state.upgrades[u.key]})</div>
+                        <div class="text-[10px] text-emerald-400 font-bold">${u.stat}</div>
+                    </div>
+                    <button onclick="buyPermUpgrade('${u.key}', ${u.cost})" class="btn-action bg-emerald-600 hover:bg-emerald-500 text-white font-game text-xs px-4 py-2 rounded-xl flex items-center gap-1">
+                        <i class="fa-solid fa-coins"></i> ${u.cost}
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function buyPermUpgrade(key, cost) {
+            if (state.gold >= cost) {
+                state.gold -= cost;
+                state.upgrades[key] = (state.upgrades[key] || 0) + 1;
+                saveState();
+            }
+        }
+
+        function renderRebirthShrine() {
+            const bonus = Math.floor(state.maxLevelUnlocked / 10) * 2;
+            const rebirthBonusEl = document.getElementById('rebirthCurrentBonusText');
+            const rebirthEligibleEl = document.getElementById('rebirthEligibleText');
+
+            if (rebirthBonusEl) rebirthBonusEl.innerText = `+${state.rebirthBonus} Base Stats`;
+            if (rebirthEligibleEl) {
+                rebirthEligibleEl.innerText = state.maxLevelUnlocked >= 10 ?
+                    `Rebirthing now will award +${bonus} Base Stats!` :
+                    `Requires Level 10+ (Current Max: Lvl ${state.maxLevelUnlocked})`;
+            }
+        }
+
+        function performRebirth() {
+            if (state.maxLevelUnlocked < 10) return;
+            const gain = Math.floor(state.maxLevelUnlocked / 10) * 2;
+            state.rebirthBonus += gain;
+            state.gold = 0;
+            state.selectedLevel = 1;
+            state.maxLevelUnlocked = 1;
+            state.selectedSkin = 0;
+            state.unlockedSkins = [0];
+            state.selectedWeapon = 0;
+            state.unlockedWeapons = [0];
+            state.upgrades = { hp: 0, damage: 0, speed: 0, coinMult: 0 };
+            saveState();
+            closeModal('modalRebirth');
+        }
+
+        function renderServers() {
+            const container = document.getElementById('serversList');
+            if (!container) return;
+            container.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const count = (window.serverPlayerCounts && window.serverPlayerCounts[i] !== undefined) ? window.serverPlayerCounts[i] : 0;
+                const card = document.createElement('div');
+                card.className = 'p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-2';
+                card.innerHTML = `
+                    <div>
+                        <div class="font-game text-sm text-cyan-300">PIRATE SERVER #${i + 1}</div>
+                        <div class="text-[10px] text-slate-400 font-bold">${count} / 10 Active Pirates</div>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <button onclick="selectServerAndMode(${i}, 'SOLO')" class="btn-action bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-game text-[10px] px-2.5 py-1.5 rounded-xl">SOLO</button>
+                        <button onclick="selectServerAndMode(${i}, 'PVP_10')" class="btn-action bg-red-600 hover:bg-red-500 text-white font-game text-[10px] px-2.5 py-1.5 rounded-xl">PVP 10P</button>
+                        <button onclick="selectServerAndMode(${i}, 'COOP_2')" class="btn-action bg-emerald-600 hover:bg-emerald-500 text-white font-game text-[10px] px-2.5 py-1.5 rounded-xl">CO-OP</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+        }
+
+        function selectServerAndMode(serverIdx, mode) {
+            currentSelectedServer = serverIdx;
+            gameMode = mode;
+            closeModal('modalServers');
+            startGameCurrentLevel();
+        }
+
+        function renderFriendsList() {
+            const container = document.getElementById('friendsList');
+            if (!container) return;
+            container.innerHTML = '';
+            if (state.friends.length === 0) {
+                container.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">No friends added yet. Add friends using their Pirate ID!</div>';
+                return;
+            }
+
+            state.friends.forEach(f => {
+                const friendId = typeof f === 'string' ? f : f.id;
+                const friendNickname = typeof f === 'string' ? f : (f.nickname || f.id);
+
+                const card = document.createElement('div');
+                card.className = 'p-2.5 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-2';
+                card.innerHTML = `
+                    <div class="truncate">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xs font-bold text-white truncate max-w-[120px]">${friendNickname}</span>
+                            <button onclick="editFriendNickname('${friendId}')" class="text-slate-400 hover:text-amber-400 text-[10px]">
+                                <i class="fa-solid fa-pencil"></i>
+                            </button>
+                        </div>
+                        <div class="text-[9px] font-mono text-slate-400 truncate">ID: ${friendId}</div>
+                        <div id="friendStatus_${friendId}" class="text-[9px] font-bold text-slate-500">Checking...</div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button id="btnJoinFriend_${friendId}" disabled onclick="joinFriendServer('${friendId}')" class="btn-action bg-slate-700 text-slate-400 cursor-not-allowed font-game text-xs px-3 py-1 rounded-xl transition-all">JOIN</button>
+                        <button onclick="removeFriend('${friendId}')" class="btn-action bg-rose-700 hover:bg-rose-600 text-white p-1.5 rounded-xl text-xs flex items-center justify-center w-7 h-7" title="Remove Friend">
+                            <i class="fa-solid fa-user-minus"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+
+                if (typeof window.getFriendOnlineStatus === 'function') {
+                    window.getFriendOnlineStatus(friendId).then(isOnline => {
+                        const statusEl = document.getElementById(`friendStatus_${friendId}`);
+                        const joinBtn = document.getElementById(`btnJoinFriend_${friendId}`);
+                        if (statusEl) {
+                            statusEl.className = `text-[9px] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`;
+                            statusEl.innerText = isOnline ? '● ONLINE' : 'OFFLINE';
+                        }
+                        if (joinBtn) {
+                            if (isOnline) {
+                                joinBtn.disabled = false;
+                                joinBtn.className = "btn-action bg-emerald-600 hover:bg-emerald-500 text-white font-game text-xs px-3 py-1 rounded-xl cursor-pointer transition-all";
+                            } else {
+                                joinBtn.disabled = true;
+                                joinBtn.className = "btn-action bg-slate-700 text-slate-400 cursor-not-allowed font-game text-xs px-3 py-1 rounded-xl opacity-60 transition-all";
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        function addFriend() {
+            const input = document.getElementById('inputFriendId');
+            if (!input) return;
+            const targetId = input.value.trim();
+            if (!targetId) return;
+
+            if (targetId === window.deviceUserId) {
+                alert("You cannot add yourself!");
+                return;
+            }
+
+            const existing = state.friends.find(f => (typeof f === 'string' ? f : f.id) === targetId);
+            if (existing) {
+                alert("That Pirate ID is already in your friends list!");
+                return;
+            }
+
+            state.friends.push({ id: targetId, nickname: targetId });
+            saveState();
+            input.value = '';
+            renderFriendsList();
+        }
+
+        function removeFriend(fId) {
+            state.friends = state.friends.filter(f => (typeof f === 'string' ? f : f.id) !== fId);
+            saveState();
+            renderFriendsList();
+        }
+
+        function editFriendNickname(fId) {
+            const friendObj = state.friends.find(f => (typeof f === 'string' ? f : f.id) === fId);
+            if (!friendObj) return;
+
+            const currentNick = typeof friendObj === 'string' ? friendObj : friendObj.nickname;
+            const newNick = prompt(`Set nickname for (${fId}):`, currentNick);
+            if (newNick !== null && newNick.trim() !== '') {
+                if (typeof friendObj === 'string') {
+                    const idx = state.friends.indexOf(friendObj);
+                    state.friends[idx] = { id: fId, nickname: newNick.trim() };
+                } else {
+                    friendObj.nickname = newNick.trim();
+                }
+                saveState();
+                renderFriendsList();
+            }
+        }
+
+        function joinFriendServer(fId) {
+            closeModal('modalFriends');
+            selectServerAndMode(0, 'PVP_10');
+        }
+
+        function buyOneTimeUpgrade(type) {
+            const costs = { speed: 30, shield: 50, giant: 60, magnet: 40 };
+            const cost = costs[type] || 30;
+            if (inGameGoldEarned >= cost) {
+                inGameGoldEarned -= cost;
+                activeOneTime[type] = true;
+                saveState();
+            }
+        }
+
+        function endGame(won) {
+            isRunning = false;
+            const hudTop = document.getElementById('hudTop');
+            const hudShop = document.getElementById('hudInGameShop');
+            if (hudTop) hudTop.classList.add('opacity-0');
+            if (hudShop) hudShop.classList.add('opacity-0');
+
+            if (won && gameMode === 'SOLO' && state.selectedLevel === state.maxLevelUnlocked) {
+                state.maxLevelUnlocked = Math.min(100, state.maxLevelUnlocked + 1);
+            }
+
+            saveState();
+
+            const titleEl = document.getElementById('endGameTitle');
+            const descEl = document.getElementById('endGameDesc');
+            const coinsEl = document.getElementById('endGameCoins');
+            const killsEl = document.getElementById('endGameKills');
+
+            if (titleEl) {
+                titleEl.innerText = won ? 'VICTORY!' : 'DEFEATED!';
+                titleEl.className = `font-game text-4xl ${won ? 'text-yellow-400' : 'text-red-500'}`;
+            }
+            if (descEl) descEl.innerText = won ? 'You eliminated all enemy pirates!' : 'You fell in battle!';
+            if (coinsEl) coinsEl.innerHTML = `<i class="fa-solid fa-coins"></i> +${inGameGoldEarned}`;
+            if (killsEl) killsEl.innerText = totalKills;
+
+            const endBtn = document.getElementById('btnEndNextRetry');
+            if (endBtn) {
+                if (won) {
+                    endBtn.innerText = 'NEXT LEVEL';
+                    endBtn.className = 'flex-1 btn-action bg-emerald-600 hover:bg-emerald-500 text-white font-game py-3 rounded-2xl';
+                } else {
+                    endBtn.innerText = 'RESTART';
+                    endBtn.className = 'flex-1 btn-action bg-amber-600 hover:bg-amber-500 text-white font-game py-3 rounded-2xl';
+                }
+            }
+
+            openModal('modalGameOver');
+        }
+
+        function restartOrNextLevel() {
+            closeModal('modalGameOver');
+            if (gameMode === 'SOLO' && player && player.hp > 0 && state.selectedLevel < state.maxLevelUnlocked) {
+                state.selectedLevel++;
+            }
+            startGameCurrentLevel();
+        }
+
+        function confirmWipeData() {
+            if (confirm("Are you sure you want to completely wipe all your progress, gold, skins, weapons, and levels? This cannot be undone!")) {
+                state.gold = 0;
+                state.selectedLevel = 1;
+                state.maxLevelUnlocked = 1;
+                state.selectedSkin = 0;
+                state.unlockedSkins = [0];
+                state.selectedWeapon = 0;
+                state.unlockedWeapons = [0];
+                state.rebirthBonus = 0;
+                state.friends = [];
+                state.upgrades = { hp: 0, damage: 0, speed: 0, coinMult: 0 };
+                localStorage.removeItem('yohoho_save_v2');
+                saveState();
+                updateUI();
+            }
+        }
+
+        function copyPirateCode() {
+            const accountEl = document.getElementById('accountUserId');
+            const uid = accountEl ? accountEl.innerText : null;
+            if (!uid || uid === 'Generating...') return;
+
+            const textarea = document.createElement('textarea');
+            textarea.value = uid;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                const btnText = document.getElementById('copyBtnText');
+                if (btnText) {
+                    btnText.innerText = 'Copied!';
+                    setTimeout(() => { btnText.innerText = 'Copy Code'; }, 2000);
+                }
+            } catch (err) {}
+            document.body.removeChild(textarea);
+        }
+
+        window.removeFriend = removeFriend;
+        window.editFriendNickname = editFriendNickname;
+        window.joinFriendServer = joinFriendServer;
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+        window.openMenu = openMenu;
+        window.startGameCurrentLevel = startGameCurrentLevel;
+        window.buyOneTimeUpgrade = buyOneTimeUpgrade;
+        window.performRebirth = performRebirth;
+        window.buySkin = buySkin;
+        window.equipSkin = equipSkin;
+        window.buyWeapon = buyWeapon;
+        window.equipWeapon = equipWeapon;
+        window.buyPermUpgrade = buyPermUpgrade;
+        window.selectServerAndMode = selectServerAndMode;
+        window.addFriend = addFriend;
+        window.savePirateName = savePirateName;
+        window.restartOrNextLevel = restartOrNextLevel;
+        window.renderServers = renderServers;
+        window.toggleChat = toggleChat;
+        window.sendChatMessage = sendChatMessage;
+        window.addChatMessage = addChatMessage;
+        window.switchServerMode = switchServerMode;
+        window.confirmWipeData = confirmWipeData;
+        window.copyPirateCode = copyPirateCode;
+
+        window.onload = () => {
+            canvas = document.getElementById('gameCanvas');
+            if (canvas) {
+                ctx = canvas.getContext('2d');
+                const dpr = window.devicePixelRatio || 1;
+                canvas.width = window.innerWidth * dpr;
+                canvas.height = window.innerHeight * dpr;
+            }
+            window.addEventListener('resize', () => {
+                if (canvas) {
+                    const dpr = window.devicePixelRatio || 1;
+                    canvas.width = window.innerWidth * dpr;
+                    canvas.height = window.innerHeight * dpr;
+                }
+            });
+            loadStateLocal();
+            openMenu();
+        };
+    </script>
+</body>
+</html>
